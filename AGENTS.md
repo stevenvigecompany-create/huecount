@@ -1,13 +1,21 @@
 # Huecount — agent notes
 
-Source of truth for mechanics: `play.html`.
+Source of truth: `play.html`.
 
-Rules:
-- Client-only. No backend. No licensed audio files. No credit-card forms.
+## Current bugs to keep fixed
+
+- Auto-lock must use `armLockTimer()` (setTimeout) on every tap. Do not rely only on requestAnimationFrame — preview tabs stall rAF and pause never commits.
+- Paces must feel different:
+  - Slow: settle 1600, counts 1–3
+  - Steady: settle 800, counts 1–5
+  - Quick: settle 280, counts 2–7
+  - Pulse: settle 220, maxGap 260
+- HUD shows `Steady · 0.8s pause` while playing.
+- Lock button is optional. Pause commits.
+
+## Rules
+
+- Client-only. No backend. No licensed audio. No card forms.
 - Persist `localStorage["huecount-save-v2"]`. Never break `plus`, `theme`, `reduceFlashes`, `music`, `sound`.
-- Music is Web Audio (`startMusic` / `duckMusic` / `swellMusic`). `save.music` is independent of `save.sound`.
-- Pulse: `PACES.pulse.maxGap === 280`. Late tap → `smashBeat` → smear even if the count is exact.
-- Free: Slow, Steady, Quick, Daily, Studio world. Plus: Pulse, Ramp/Drift/Climb/Rush, later worlds.
-- Unlock Huecount+ sets `save.plus = true` on device. Real store IAP is a later Capacitor / TWA wrapper.
-- Mobile first. Safe-area insets. `prefers-color-scheme`, `prefers-reduced-motion`, wake lock while playing.
-- Don’t invert Light mode into gray. Play well stays a dark disc.
+- Music is Web Audio (`startMusic` / `duckMusic` / `swellMusic`).
+- Free: Slow, Steady, Quick, Daily, Studio world. Plus: Pulse, challenges, later worlds.
