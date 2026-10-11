@@ -340,16 +340,15 @@ function playOrb(): string {
 
 function playHTML(): string {
   const badge = badgeLabel(state.result, state.newBest);
-  const badgeHTML = badge ? `<p class="badge show${state.result === "smear" ? " warn" : ""}">${esc(badge)}</p>` : "";
+  const badgeHTML = badge
+    ? `<div class="result-row"><p class="badge show${state.result === "smear" ? " warn" : ""}">${esc(badge)}</p><p class="confirm show${state.result === "smear" ? " warn" : ""}" role="status">Locked</p></div>`
+    : "";
   const meter = state.pace === "rush" && !state.result
     ? `<div class="meter" aria-hidden="true"><span id="rushfill" style="transform:scaleX(${rushScale().toFixed(4)})"></span></div>`
     : "";
   const kept = state.pace === "daily" && save.dailyStamp === today() ? " · on the wall today" : "";
-  const confirm = state.result
-    ? `<p class="confirm show${state.result === "smear" ? " warn" : ""}" role="status">Locked</p>`
-    : "";
   const actions = state.result
-    ? `<div class="actions">${confirm}<div class="split"><button type="button" class="quiet" data-act="home">Home</button><button type="button" class="primary" data-act="again">Again</button></div></div>`
+    ? `<div class="actions"><div class="split"><button type="button" class="quiet" data-act="home">Home</button><button type="button" class="primary" data-act="again">Again</button></div></div>`
     : `<div class="actions"><button type="button" class="quiet" data-act="pause">Hold</button></div>`;
   return `<div class="stage-mid"><p class="where" id="hud">${esc(hudLine(state.pace))}</p>${badgeHTML}${playOrb()}${meter}<p class="note" id="note" aria-live="polite">${esc(line())}</p><p class="pigment"><i></i>${esc(hueName(state.pigment.h) + kept)}</p></div>${actions}`;
 }
