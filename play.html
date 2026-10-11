@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" data-world="studio">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#070814" id="theme-color" />
+<meta name="color-scheme" content="dark light" />
+<meta name="description" content="Tap the count. Lock the color." />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Huecount" />
+<meta name="format-detection" content="telephone=no" />
+<title>Huecount</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/icon-192.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="preload" href="/fonts/syne-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
+<script>
+try {
+  var raw = JSON.parse(localStorage.getItem("huecount-save-v1") || "{}");
+  var theme = raw.theme === "light" || raw.theme === "dark" ? raw.theme : "system";
+  var dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  var meta = document.getElementById("theme-color");
+  if (meta) meta.setAttribute("content", dark ? "#070814" : "#e7edf8");
+} catch (e) {}
+</script>
+<style>
+  html { background: #070814; color: #f4f6ff; }
+  html[data-theme="light"] { background: #e7edf8; color: #161924; }
+  body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<div class="shell" id="app">
+  <header class="topbar"><span class="mark">Hue<em>count</em></span></header>
+  <main class="view">
+    <h1 class="title">Tap the count.<span>Lock the color.</span></h1>
+    <p class="lede">Count with your thumb. Lock a color. It stays on this device, with no account.</p>
+  </main>
+</div>
+<script type="module" src="/src/play.ts"></script>
+</body>
+</html>
