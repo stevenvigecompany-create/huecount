@@ -271,6 +271,8 @@ a { color: inherit; }
   box-shadow: var(--shadow);
 }
 
+.statbar.one { grid-template-columns: 1fr; }
+
 .statbar div { text-align: center; }
 .statbar div + div { box-shadow: inset 1px 0 0 var(--stroke); }
 
@@ -325,6 +327,97 @@ a { color: inherit; }
 .chip .dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
 .chip[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-text); border-color: transparent; }
 .chip:active { transform: scale(0.97); }
+.chip.locked { color: var(--faint); }
+.chip .lock {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: hsl(var(--hue) 70% 60% / 0.16);
+  color: var(--accent-ink);
+}
+
+.plus-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 16px 14px;
+  border-radius: 22px;
+  border: 1px solid var(--stroke);
+  background:
+    radial-gradient(120% 90% at 0% 0%, hsl(var(--hue) 80% 62% / 0.2), transparent 58%),
+    var(--glass);
+  box-shadow: var(--shadow);
+}
+
+.plus-card h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.plus-card p { margin: 0; color: var(--muted); line-height: 1.4; }
+.plus-card .primary { min-height: 48px; }
+
+.primary:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.streak-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.streak-log li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--stroke);
+}
+
+.streak-log b {
+  font-size: 1.1rem;
+  letter-spacing: -0.04em;
+}
+
+.streak-log span { color: var(--muted); font-size: 0.85rem; font-weight: 700; }
+
+.restore {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.restore label {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.restore input {
+  min-height: 48px;
+  border-radius: 16px;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 600;
+}
+
+.restore input:focus {
+  outline: 2px solid hsl(var(--hue) 80% 64% / 0.7);
+  outline-offset: 1px;
+}
 
 .points {
   display: flex;
@@ -977,6 +1070,7 @@ html[data-theme="light"] .scrim { background: rgba(22, 26, 44, 0.28); }
 html[data-theme="light"] .switch span { background: rgba(20, 24, 40, 0.16); }
 html[data-theme="light"] .seg { background: rgba(20, 24, 40, 0.04); }
 html[data-theme="light"] .card { background: rgba(255, 255, 255, 0.55); }
+html[data-theme="light"] .restore input { background: #fff; }
 
 @media (prefers-reduced-motion: reduce) {
   html[data-hue-live="on"] { animation: none; }

@@ -25,20 +25,22 @@ export const PACES: Record<PaceId, Pace> = {
   rush: { name: "Rush", blurb: "Lock the count before the bar is gone.", min: 6, max: 14, limit: RUSH_LIMIT },
 };
 
-export const WORLD_ORDER = ["studio", "dusk", "glass", "field", "ink"] as const;
+export const WORLD_ORDER = ["studio", "dusk", "ink", "glass", "field"] as const;
 export type WorldId = (typeof WORLD_ORDER)[number];
 
 export interface World {
   name: string;
   swatch: string;
+  pack: string;
+  plus: boolean;
 }
 
 export const WORLDS: Record<WorldId, World> = {
-  studio: { name: "Studio", swatch: "#8b7cff" },
-  dusk: { name: "Dusk", swatch: "#e489a4" },
-  glass: { name: "Glass", swatch: "#7ec8ea" },
-  field: { name: "Field", swatch: "#8fce86" },
-  ink: { name: "Ink", swatch: "#aeb6cc" },
+  studio: { name: "Studio", swatch: "#8b7cff", pack: "Studio", plus: false },
+  dusk: { name: "Dusk", swatch: "#e489a4", pack: "After dark", plus: true },
+  ink: { name: "Ink", swatch: "#aeb6cc", pack: "After dark", plus: true },
+  glass: { name: "Glass", swatch: "#7ec8ea", pack: "Open air", plus: true },
+  field: { name: "Field", swatch: "#8fce86", pack: "Open air", plus: true },
 };
 
 export type Grade = "exact" | "close" | "smear";

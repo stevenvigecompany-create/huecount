@@ -48,35 +48,67 @@ function tone(freq: number, delay: number, dur: number, peak: number, type: Osci
   osc.stop(t + dur + 0.02);
 }
 
-export function playTap(enabled: boolean, step: number): void {
+export const SOUND_PACKS = ["tick", "glass", "wood"] as const;
+export type SoundPack = (typeof SOUND_PACKS)[number];
+
+export function isSoundPack(value: string): value is SoundPack {
+  return (SOUND_PACKS as readonly string[]).includes(value);
+}
+
+export function playTap(enabled: boolean, step: number, pack: SoundPack = "tick"): void {
   if (!enabled) return;
+  if (pack === "glass") {
+    tone(860 + (step % 5) * 36, 0, 0.045, 0.035);
+    tone(1720, 0.012, 0.04, 0.012);
+    return;
+  }
+  if (pack === "wood") {
+    tone(196 + (step % 5) * 18, 0, 0.08, 0.06, "triangle");
+    return;
+  }
   tone(470 + (step % 7) * 22, 0, 0.07, 0.05);
 }
 
-export function playArrival(enabled: boolean): void {
+export function playArrival(enabled: boolean, pack: SoundPack = "tick"): void {
   if (!enabled) return;
+  if (pack === "glass") {
+    tone(988, 0, 0.08, 0.04);
+    tone(1480, 0.04, 0.12, 0.03);
+    return;
+  }
+  if (pack === "wood") {
+    tone(330, 0, 0.1, 0.06, "triangle");
+    tone(440, 0.05, 0.14, 0.045, "triangle");
+    return;
+  }
   tone(660, 0, 0.12, 0.06);
   tone(880, 0.05, 0.16, 0.045);
 }
 
-export function playSmearTap(enabled: boolean): void {
+export function playSmearTap(enabled: boolean, pack: SoundPack = "tick"): void {
   if (!enabled) return;
-  tone(180, 0, 0.09, 0.05, "triangle");
+  if (pack === "glass") {
+    tone(240, 0, 0.07, 0.04, "triangle");
+    return;
+  }
+  tone(pack === "wood" ? 110 : 180, 0, 0.09, 0.05, "triangle");
 }
 
-export function playLock(enabled: boolean, kind: "exact" | "close" | "smear"): void {
+export function playLock(enabled: boolean, kind: "exact" | "close" | "smear", pack: SoundPack = "tick"): void {
   if (!enabled) return;
+  const voice: OscillatorType = pack === "tick" ? "sine" : pack === "wood" ? "triangle" : "sine";
+  const lift = pack === "glass" ? 1.25 : 1;
   if (kind === "smear") {
-    tone(140, 0, 0.16, 0.06, "triangle");
+    tone(pack === "glass" ? 196 : 140, 0, 0.16, 0.06, pack === "tick" ? "triangle" : voice);
     return;
   }
   if (kind === "close") {
-    tone(494, 0, 0.16, 0.055);
-    tone(622, 0.06, 0.2, 0.04);
+    tone(494 * lift, 0, 0.16, 0.055, voice);
+    tone(622 * lift, 0.06, 0.2, 0.04, voice);
     return;
   }
-  tone(523, 0, 0.18, 0.06);
-  tone(784, 0.07, 0.28, 0.05);
+  tone(523 * lift, 0, 0.18, 0.06, voice);
+  tone(784 * lift, 0.07, 0.28, 0.05, voice);
 }
 
 export function syncMusic(enabled: boolean): void {

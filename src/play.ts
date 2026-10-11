@@ -24,8 +24,19 @@ import {
   type Grade,
 } from "./logic.ts";
 import { loadSave, persist, type Save } from "./store.ts";
-import { duckMusic, playArrival, playLock, playSmearTap, playTap, swellMusic, syncMusic } from "./audio.ts";
+import { playArrival, playLock, playSmearTap, playTap, swellMusic, syncMusic, duckMusic, type SoundPack } from "./audio.ts";
 import { HAPTIC, hapticAvailable, playHaptic } from "./haptics.ts";
+import {
+  PLUS_PRICE,
+  currentPlusConfig,
+  matchRestoreCode,
+  playSound,
+  playWorld,
+  plusReady,
+  soundNeedsPlus,
+  stripPlusParam,
+  worldNeedsPlus,
+} from "./plus.ts";
 
 const ICON_WALL = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.75"/><rect x="13.5" y="3.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.75"/><rect x="3.5" y="13.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.75"/><rect x="13.5" y="13.5" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1.75"/></svg>`;
 const ICON_SET = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><circle cx="9" cy="7" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="8" cy="17" r="2" fill="currentColor"/></svg>`;
@@ -38,7 +49,9 @@ interface InstallPrompt extends Event {
 const save: Save = loadSave();
 const state = {
   view: "home" as "home" | "play" | "wall",
-  sheet: null as null | "settings" | "pause",
+  sheet: null as null | "settings" | "pause" | "plus",
+  plusNote: "",
+  restoreDraft: "",
   pace: save.pace,
   world: save.world,
   taps: 0,
@@ -88,7 +101,7 @@ function applyChrome(): void {
   const root = document.documentElement;
   const mode = save.theme === "system" ? (systemDark() ? "dark" : "light") : save.theme;
   root.dataset.theme = mode;
-  root.dataset.world = state.view === "play" ? state.world : save.world;
+  root.dataset.world = state.view === "play" ? state.world : playWorld(save.world, save.plus);
   root.dataset.motion = motionCalm() ? "reduce" : "ok";
   const pigment = activePigment();
   root.style.setProperty("--pig-s", String(pigment?.s ?? 64));
@@ -200,22 +213,72 @@ function showFault(): void {
 }
 
 function headerHTML(): string {
-  const pill = state.view === "play"
+  const pill = state.view === "play" && save.plus
     ? `<span class="pill${state.newBest ? " pop" : ""}"><i></i>Streak ${save.streak}</span>`
     : "";
   return `<header class="topbar"><button type="button" class="mark" data-act="home">Hue<em>count</em></button><div class="top-actions">${pill}<button type="button" class="iconbtn" data-act="wall" aria-label="Wall">${ICON_WALL}</button><button type="button" class="iconbtn" data-act="settings" aria-label="Settings">${ICON_SET}</button></div></header>`;
 }
 
-function chip(kind: "pace" | "world", id: string): string {
-  if (kind === "world") {
-    if (!isWorld(id)) return "";
-    const item = WORLDS[id];
-    const on = save.world === id;
-    return `<button type="button" class="chip" data-act="pick" data-kind="world" data-arg="${id}" aria-pressed="${on}"><i class="dot" style="background:${item.swatch}"></i>${esc(item.name)}</button>`;
+function voice(): SoundPack {
+  return playSound(save.soundPack, save.plus);
+}
+
+function worldChip(id: string): string {
+  if (!isWorld(id)) return "";
+  const item = WORLDS[id];
+  const locked = worldNeedsPlus(id) && !save.plus;
+  if (locked) {
+    return `<button type="button" class="chip locked" data-act="plus" aria-pressed="false"><i class="dot" style="background:${item.swatch}"></i>${esc(item.name)}<span class="lock">Plus</span></button>`;
   }
+  const on = playWorld(save.world, save.plus) === id;
+  return `<button type="button" class="chip" data-act="pick" data-kind="world" data-arg="${id}" aria-pressed="${on}"><i class="dot" style="background:${item.swatch}"></i>${esc(item.name)}</button>`;
+}
+
+function soundChip(id: SoundPack): string {
+  const name = id === "tick" ? "Tick" : id === "glass" ? "Glass" : "Wood";
+  if (soundNeedsPlus(id) && !save.plus) {
+    return `<button type="button" class="chip locked" data-act="plus" aria-pressed="false">${name}<span class="lock">Plus</span></button>`;
+  }
+  return `<button type="button" class="chip" data-act="soundpack" data-arg="${id}" aria-pressed="${voice() === id}">${name}</button>`;
+}
+
+function chip(kind: "pace" | "world", id: string): string {
+  if (kind === "world") return worldChip(id);
   if (!isPace(id)) return "";
   const item = PACES[id];
   return `<button type="button" class="chip" data-act="pick" data-kind="pace" data-arg="${id}" aria-pressed="${save.pace === id}">${esc(item.name)}</button>`;
+}
+
+function statsHTML(): string {
+  if (!save.plus) {
+    return `<div class="statbar one" aria-label="Colors saved on this device"><div><b>${save.locks}</b><span>Locked</span></div></div>`;
+  }
+  return `<div class="statbar" aria-label="Streak saved on this device"><div class="best"><b>${save.bestStreak}</b><span>Best</span></div><div><b>${save.streak}</b><span>Streak</span></div><div><b>${save.locks}</b><span>Locked</span></div></div>`;
+}
+
+function historyHTML(): string {
+  if (!save.plus) return "";
+  if (save.history.length === 0) {
+    return `<div class="group"><p class="label">Streak log</p><p class="fine">Best is ${save.bestStreak}. The next lock starts the log.</p></div>`;
+  }
+  const rows = save.history.slice(0, 6).map((mark) => {
+    const when = mark.at ? new Date(mark.at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+    const grade = mark.grade === "exact" ? "Exact" : mark.grade === "close" ? "Close" : "Smear";
+    return `<li><b>${mark.streak}</b><span>${esc(grade)}${when ? ` · ${esc(when)}` : ""}</span></li>`;
+  }).join("");
+  return `<div class="group"><p class="label">Streak log</p><ol class="streak-log">${rows}</ol></div>`;
+}
+
+function plusOfferButton(): string {
+  if (plusReady(currentPlusConfig())) {
+    return `<button type="button" class="primary" data-act="unlock">Unlock Plus · ${PLUS_PRICE}</button>`;
+  }
+  return `<button type="button" class="primary" disabled>Plus coming soon</button>`;
+}
+
+function plusCard(): string {
+  if (save.plus) return `<p class="fine">Plus is on this phone.</p>`;
+  return `<section class="plus-card"><p class="label">Plus</p><h2>Extra rooms, sounds, and your streak.</h2><p>${PLUS_PRICE} once. It stays on this phone. No account.</p>${plusOfferButton()}</section>`;
 }
 
 function homeHTML(): string {
@@ -225,7 +288,7 @@ function homeHTML(): string {
     ? `<button type="button" class="quiet" data-act="install">Install app</button>`
     : "";
   const hint = installed() ? "" : `<p class="fine">Add Huecount to your home screen for the full-screen app.</p>`;
-  return `${gem("preview", 0.68)}<div class="hero-copy"><h1 class="title">Tap the count.<span>Lock the color.</span></h1><p class="lede">${esc(pace.blurb)}</p>${dailyDone ? `<p class="fine">Today's color is already on the wall.</p>` : ""}</div><div class="statbar" aria-label="Scores saved on this device"><div class="best"><b>${save.bestStreak}</b><span>Best</span></div><div><b>${save.streak}</b><span>Streak</span></div><div><b>${save.locks}</b><span>Locked</span></div></div><div class="group"><p class="label">Pace</p><div class="chips scroll">${PACE_ORDER.map((id) => chip("pace", id)).join("")}</div></div><div class="group"><p class="label">Room</p><div class="chips">${WORLD_ORDER.map((id) => chip("world", id)).join("")}</div></div>${hint}${install}<div class="actions"><button type="button" class="primary" data-act="play">Play</button></div>`;
+  return `${gem("preview", 0.68)}<div class="hero-copy"><h1 class="title">Tap the count.<span>Lock the color.</span></h1><p class="lede">${esc(pace.blurb)}</p>${dailyDone ? `<p class="fine">Today's color is already on the wall.</p>` : ""}</div>${statsHTML()}<div class="group"><p class="label">Pace</p><div class="chips scroll">${PACE_ORDER.map((id) => chip("pace", id)).join("")}</div></div><div class="group"><p class="label">Room</p><div class="chips">${WORLD_ORDER.map((id) => chip("world", id)).join("")}</div></div>${historyHTML()}${plusCard()}${hint}${install}<div class="actions"><button type="button" class="primary" data-act="play">Play</button></div>`;
 }
 
 function playOrb(): string {
@@ -273,7 +336,26 @@ function themeButton(id: Save["theme"], label: string): string {
 
 function settingsHTML(): string {
   const canBuzz = hapticAvailable();
-  return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Settings</p><h2>On this device</h2></div><div class="group"><p class="label">Theme</p><div class="seg">${themeButton("dark", "Dark")}${themeButton("light", "Light")}${themeButton("system", "System")}</div></div><div class="card">${toggle("sound", "Sound", save.sound, "Ticks and the lock chime.")}${toggle("music", "Music", save.music, "A quiet bed under the count.")}${toggle("haptics", "Haptics", save.haptics && canBuzz, canBuzz ? "A short pulse in the hand." : "This browser doesn't vibrate. Taps still press in.", !canBuzz)}${toggle("motion", "Reduce motion", save.reduceMotion, "Stops the pops and the color drift.")}</div><button type="button" class="primary" data-act="close">Done</button>`;
+  const sounds = (["tick", "glass", "wood"] as const).map((id) => soundChip(id)).join("");
+  return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Settings</p><h2>On this device</h2></div><div class="group"><p class="label">Theme</p><div class="seg">${themeButton("dark", "Dark")}${themeButton("light", "Light")}${themeButton("system", "System")}</div></div><div class="card">${toggle("sound", "Sound", save.sound, "Ticks and the lock chime.")}${toggle("music", "Music", save.music, "A quiet bed under the count.")}${toggle("haptics", "Haptics", save.haptics && canBuzz, canBuzz ? "A short pulse in the hand." : "This browser doesn't vibrate. Taps still press in.", !canBuzz)}${toggle("motion", "Reduce motion", save.reduceMotion, "Stops the pops and the color drift.")}</div><div class="group"><p class="label">Sound pack</p><div class="chips">${sounds}</div></div><button type="button" class="quiet" data-act="plus">${save.plus ? "Plus is on" : "Huecount Plus"}</button><button type="button" class="primary" data-act="close">Done</button>`;
+}
+
+function restoreForm(): string {
+  if (save.plus || !currentPlusConfig().codeHash) return "";
+  const note = state.plusNote ? `<p class="fine" id="plus-note">${esc(state.plusNote)}</p>` : "";
+  return `<form class="restore" data-act="restore"><label for="restore-code">Restore code</label><input id="restore-code" name="code" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="80" placeholder="From your receipt" value="${esc(state.restoreDraft)}" /><button type="submit" class="quiet">Restore Plus</button>${note}</form>`;
+}
+
+function plusHTML(): string {
+  if (save.plus) {
+    return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Plus</p><h2>On this phone.</h2><p>After dark, Open air, Glass and Wood, and the streak log. Nothing else to buy.</p>${state.plusNote ? `<p class="fine">${esc(state.plusNote)}</p>` : ""}</div><button type="button" class="primary" data-act="close">Done</button>`;
+  }
+  const config = currentPlusConfig();
+  const pending = plusReady(config) && !config.codeHash
+    ? `<p class="fine">This build has a payment link, but no restore code yet, so a payment cannot turn Plus on.</p>`
+    : "";
+  const soon = plusReady(config) ? "" : `<p>The payment link is not connected yet. The free fidget keeps working.</p>`;
+  return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Plus</p><h2>Huecount Plus</h2><p>${PLUS_PRICE} once, for extra color packs, two more sounds, and streak tracking. No ads. No account.</p>${soon}${pending}</div>${plusOfferButton()}${restoreForm()}<button type="button" class="quiet" data-act="close">Not now</button>`;
 }
 
 function pauseHTML(): string {
@@ -287,7 +369,7 @@ function pauseHTML(): string {
 
 function sheetHTML(): string {
   if (!state.sheet) return "";
-  const body = state.sheet === "settings" ? settingsHTML() : pauseHTML();
+  const body = state.sheet === "settings" ? settingsHTML() : state.sheet === "plus" ? plusHTML() : pauseHTML();
   return `<button type="button" class="scrim" data-act="close" aria-label="Close"></button><div class="sheet-wrap"><section class="sheet" role="dialog" aria-modal="true" tabindex="-1">${body}</section></div>`;
 }
 
@@ -426,7 +508,7 @@ function openWall(): void {
 
 function startRound(): void {
   const pace = isPace(save.pace) ? save.pace : "steady";
-  const world = isWorld(save.world) ? save.world : "studio";
+  const world = playWorld(isWorld(save.world) ? save.world : "studio", save.plus);
   stopRush();
   state.view = "play";
   state.sheet = null;
@@ -466,7 +548,7 @@ function finish(): void {
     save.exacts += 1;
     save.locks += 1;
     save.bestStreak = Math.max(previousBest, save.streak);
-    state.newBest = save.streak > previousBest;
+    state.newBest = save.plus && save.streak > previousBest;
     swellMusic(save.music);
   } else if (grade === "close") {
     save.closes += 1;
@@ -476,7 +558,11 @@ function finish(): void {
     save.smears += 1;
     duckMusic(save.music);
   }
-  playLock(save.sound, grade);
+  if (save.plus) {
+    save.history.unshift({ at: Date.now(), grade, streak: save.streak });
+    if (save.history.length > 40) save.history.length = 40;
+  }
+  playLock(save.sound, grade, voice());
   const pattern = grade === "exact" ? HAPTIC.exact : grade === "close" ? HAPTIC.close : HAPTIC.smear;
   playHaptic(pattern, save.haptics);
   const already = state.pace === "daily" && save.dailyStamp === today();
@@ -515,9 +601,10 @@ function registerTap(now = performance.now()): void {
     stopRush();
     rushRaf = requestAnimationFrame(rushLoop);
   }
-  if (late) playSmearTap(save.sound);
-  else if (!state.smashed && state.taps === state.target) playArrival(save.sound);
-  else playTap(save.sound, state.taps);
+  const pack = voice();
+  if (late) playSmearTap(save.sound, pack);
+  else if (!state.smashed && state.taps === state.target) playArrival(save.sound, pack);
+  else playTap(save.sound, state.taps, pack);
   duckMusic(save.music);
   const pattern = late ? HAPTIC.smash : !state.smashed && state.taps === state.target ? HAPTIC.arrival : HAPTIC.tap;
   playHaptic(pattern, save.haptics);
@@ -541,6 +628,35 @@ const actions: Record<string, (arg?: string, button?: HTMLElement) => void> = {
     if (state.view === "play" && !state.result) holdRound();
     state.sheet = "settings";
     render();
+  },
+  plus() {
+    if (state.view === "play" && !state.result) holdRound();
+    state.sheet = "plus";
+    render();
+  },
+  unlock() {
+    const url = currentPlusConfig().unlockUrl;
+    if (!url) return;
+    window.location.assign(url);
+  },
+  restore(code) {
+    const input = document.querySelector<HTMLInputElement>("#restore-code");
+    const value = code ?? input?.value ?? "";
+    void matchRestoreCode(value, currentPlusConfig()).then((result) => {
+      if (result === "ok") {
+        save.plus = true;
+        state.restoreDraft = "";
+        state.plusNote = "Plus is on this phone.";
+        state.sheet = "plus";
+        persist(save);
+        render();
+        return;
+      }
+      state.restoreDraft = value.trim();
+      state.plusNote = result === "unconfigured" ? "Plus coming soon." : "That code doesn't match.";
+      state.sheet = "plus";
+      render();
+    });
   },
   close() {
     if (state.view === "play" && state.paused && !state.result) {
@@ -568,6 +684,11 @@ const actions: Record<string, (arg?: string, button?: HTMLElement) => void> = {
     if (!arg || !button) return;
     if (button.dataset.kind === "world") {
       if (!isWorld(arg)) return;
+      if (worldNeedsPlus(arg) && !save.plus) {
+        state.sheet = "plus";
+        render();
+        return;
+      }
       save.world = arg;
     } else {
       if (!isPace(arg)) return;
@@ -585,7 +706,7 @@ const actions: Record<string, (arg?: string, button?: HTMLElement) => void> = {
   sound() {
     save.sound = !save.sound;
     persist(save);
-    if (save.sound) playTap(true, 2);
+    if (save.sound) playTap(true, 2, voice());
     paintSettings();
   },
   music() {
@@ -605,6 +726,18 @@ const actions: Record<string, (arg?: string, button?: HTMLElement) => void> = {
     save.reduceMotion = !save.reduceMotion;
     persist(save);
     paintSettings();
+  },
+  soundpack(arg) {
+    if (arg !== "tick" && arg !== "glass" && arg !== "wood") return;
+    if (soundNeedsPlus(arg) && !save.plus) {
+      state.sheet = "plus";
+      render();
+      return;
+    }
+    save.soundPack = arg;
+    persist(save);
+    if (save.sound) playTap(true, 3, arg);
+    render();
   },
   install() {
     if (!deferredPrompt) return;
@@ -628,7 +761,7 @@ document.body.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
   const button = target.closest("[data-act]");
-  if (!(button instanceof HTMLElement)) return;
+  if (!(button instanceof HTMLElement) || button.tagName === "FORM") return;
   const act = button.dataset.act ?? "";
   if (act === "tap") {
     if (event.detail === 0) onOrb(performance.now());
@@ -680,7 +813,19 @@ window.matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change",
   applyChrome();
 });
 
+document.body.addEventListener("submit", (event) => {
+  const form = event.target;
+  if (!(form instanceof HTMLFormElement) || form.dataset.act !== "restore") return;
+  event.preventDefault();
+  actions.restore();
+});
+
+const returned = stripPlusParam(location.href);
+if (returned.code != null) history.replaceState(null, "", returned.next);
+
 render();
+
+if (returned.code != null) actions.restore(returned.code);
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch(() => undefined);

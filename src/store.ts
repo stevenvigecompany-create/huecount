@@ -1,3 +1,4 @@
+import { isSoundPack, type SoundPack } from "./audio.ts";
 import { isPace, isWorld, clamp, type PaceId, type WorldId } from "./logic.ts";
 
 export const SAVE_KEY = "huecount-save-v1";
@@ -11,6 +12,12 @@ export interface WallItem {
   pace: PaceId;
   world: WorldId;
   at: number;
+}
+
+export interface StreakMark {
+  at: number;
+  grade: "exact" | "close" | "smear";
+  streak: number;
 }
 
 export interface Save {
@@ -31,6 +38,9 @@ export interface Save {
   dailyStamp: string;
   rampFloor: number;
   climbRung: number;
+  plus: boolean;
+  soundPack: SoundPack;
+  history: StreakMark[];
 }
 
 export interface KeyValue {
@@ -49,6 +59,19 @@ function count(value: unknown): number {
 
 function flag(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function readHistory(value: unknown): StreakMark[] {
+  if (!Array.isArray(value)) return [];
+  const marks: StreakMark[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    if (row.grade !== "exact" && row.grade !== "close" && row.grade !== "smear") continue;
+    marks.push({ at: count(row.at), grade: row.grade, streak: count(row.streak) });
+    if (marks.length >= 40) break;
+  }
+  return marks;
 }
 
 function readWall(value: unknown): WallItem[] {
@@ -84,6 +107,7 @@ export function normalizeSave(input: unknown): Save {
   const streak = count(raw.streak);
   const bestStreak = Math.max(count(raw.bestStreak), streak);
   const dailyStamp = typeof raw.dailyStamp === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.dailyStamp) ? raw.dailyStamp : "";
+  const soundPack = typeof raw.soundPack === "string" && isSoundPack(raw.soundPack) ? raw.soundPack : "tick";
   return {
     theme,
     reduceMotion: flag(raw.reduceMotion, false),
@@ -102,6 +126,9 @@ export function normalizeSave(input: unknown): Save {
     dailyStamp,
     rampFloor: clamp(count(raw.rampFloor) || 5, 5, 24),
     climbRung: clamp(count(raw.climbRung), 0, 8),
+    plus: flag(raw.plus, false),
+    soundPack,
+    history: readHistory(raw.history),
   };
 }
 

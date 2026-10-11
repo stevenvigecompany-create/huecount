@@ -80,16 +80,19 @@ function precache(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [routes(), precache()],
-  build: {
-    rollupOptions: {
-      input: {
-        main: resolve("index.html"),
-        play: resolve("play.html"),
+export default defineConfig(() => {
+  return {
+    envPrefix: ["VITE_", "NEXT_PUBLIC_"],
+    plugins: [routes(), precache()],
+    build: {
+      rollupOptions: {
+        input: {
+          main: resolve("index.html"),
+          play: resolve("play.html"),
+        },
       },
     },
-  },
-  server: { host: "127.0.0.1", port: 43123, strictPort: true },
-  preview: { host: "127.0.0.1", port: 43123, strictPort: true },
+    server: { host: "127.0.0.1", port: 43123, strictPort: true },
+    preview: { host: "127.0.0.1", port: 43123, strictPort: true },
+  };
 });

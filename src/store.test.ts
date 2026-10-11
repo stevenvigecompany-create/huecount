@@ -22,6 +22,9 @@ describe("normalizeSave", () => {
     expect(save.world).toBe("dusk");
     expect(save.theme).toBe("system");
     expect(save.rampFloor).toBe(5);
+    expect(save.plus).toBe(false);
+    expect(save.soundPack).toBe("tick");
+    expect(save.history).toEqual([]);
   });
 
   it("drops broken wall items and heals the best streak", () => {
@@ -37,6 +40,14 @@ describe("normalizeSave", () => {
     expect(save.climbRung).toBe(0);
     expect(save.wall).toHaveLength(1);
     expect(save.wall[0]?.name).toBe("Clay");
+    const tracked = normalizeSave({
+      plus: true,
+      soundPack: "glass",
+      history: [{ at: 9, grade: "exact", streak: 2 }, { grade: "nope" }],
+    });
+    expect(tracked.plus).toBe(true);
+    expect(tracked.soundPack).toBe("glass");
+    expect(tracked.history).toEqual([{ at: 9, grade: "exact", streak: 2 }]);
   });
 
   it("ignores junk payloads", () => {
