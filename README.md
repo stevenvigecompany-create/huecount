@@ -2,7 +2,7 @@
 
 Tap the count. Lock the color.
 
-Huecount is a one-thumb fidget for a phone. A glass dial shows the count. You tap it, then lock. An exact count keeps the pigment on the wall. One off still stays, a little softer. A miss leaves the wall alone. No account, no ads, no server.
+Huecount is a one-thumb fidget for a phone. A glass dial shows the count. You tap it, then stop. A short pause locks the color on its own. An exact count keeps the pigment on the wall. One off still stays, a little softer. A miss leaves the wall alone. No account, no ads, no server.
 
 The free game is the whole fidget: Slow, Steady, Quick, Daily, Pulse, Ramp, Drift, Climb, and Rush, the Studio room, and the Tick sound. Huecount Plus is a one-time $3 unlock stored on the device. It adds the After dark and Open air color packs, the Glass and Wood sounds, and a local streak log. Until a payment link is configured, Plus says "coming soon" and the free game keeps working.
 
