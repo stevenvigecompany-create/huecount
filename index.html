@@ -1,40 +1,67 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-hue-live="on" data-world="studio">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#0a0a0b" />
-<meta name="description" content="Tap the count. Lock the color. A fidget for iPhone and Android." />
+<meta name="theme-color" content="#070814" id="theme-color" />
+<meta name="color-scheme" content="dark light" />
+<meta name="description" content="Tap the count. Lock the color. A one-thumb fidget for iPhone and Android." />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Huecount" />
+<meta name="format-detection" content="telephone=no" />
 <meta property="og:title" content="Huecount" />
 <meta property="og:description" content="Tap the count. Lock the color." />
 <title>Huecount</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,500&family=Outfit:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/icon-192.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="preload" href="/fonts/syne-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
+<script>
+try {
+  var raw = JSON.parse(localStorage.getItem("huecount-save-v1") || "{}");
+  var theme = raw.theme === "light" || raw.theme === "dark" ? raw.theme : "system";
+  var dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  var meta = document.getElementById("theme-color");
+  if (meta) meta.setAttribute("content", dark ? "#070814" : "#e7edf8");
+} catch (e) {}
+</script>
 <style>
-  :root { --bg:#0a0a0b; --fg:#f3eee4; --muted:#8f8578; --accent:#7c6cff; }
-  * { box-sizing:border-box; }
-  html,body { margin:0; min-height:100%; background:var(--bg); color:var(--fg); font-family:Outfit,system-ui,sans-serif; }
-  main { max-width:28rem; margin:0 auto; padding:4.5rem 1.4rem 3rem; }
-  .brand { letter-spacing:.22em; text-transform:uppercase; font-size:.68rem; color:var(--muted); }
-  h1 { font-family:Fraunces,Georgia,serif; font-weight:500; font-size:2.6rem; line-height:1.05; margin:.8rem 0 1rem; }
-  h1 em { display:block; font-style:italic; color:var(--muted); font-size:1.7rem; margin-top:.2rem; }
-  p { color:var(--muted); line-height:1.5; }
-  .go {
-    display:block; text-align:center; margin:1.6rem 0 1rem; padding:1rem 1.2rem;
-    background:#f3eee4; color:#16120e; border-radius:999px; text-decoration:none; font-weight:500;
-  }
-  .note { font-size:.82rem; }
-  ul { padding-left:1.1rem; color:var(--muted); line-height:1.55; }
+  html { background: #070814; color: #f4f6ff; }
+  html[data-theme="light"] { background: #e7edf8; color: #161924; }
+  body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
 </style>
 </head>
 <body>
-<main>
-  <div class="brand">Huecount</div>
-  <h1>Tap the count.<em>Lock the color.</em></h1>
-  <p>A pocket studio for iPhone and Android. Count on your fingers. Pause. A pigment locks. The wall remembers.</p>
-  <a class="go" href="./play.html">Play</a>
-  <p class="note">Add to Home Screen in Safari or Install app in Chrome for the full-screen app.</p>
-  <p class="note">Free is Slow, Steady, Quick, Daily, and the Studio rooms. Huecount+ unlocks Pulse and the long worlds.</p>
-</main>
+<div class="shell">
+  <header class="topbar"><span class="mark">Hue<em>count</em></span></header>
+  <main class="view home">
+    <div class="orb preview" style="--p:0.68" aria-hidden="true">
+      <span class="orb-glow"></span>
+      <span class="orb-scale">
+        <span class="orb-progress"></span>
+        <span class="orb-head"></span>
+        <span class="orb-glass"><span class="orb-sheen"></span></span>
+      </span>
+    </div>
+    <div class="hero-copy">
+      <h1 class="title">Tap the count.<span>Lock the color.</span></h1>
+      <p class="lede">A one-thumb fidget. Count, pause, and keep the pigment.</p>
+    </div>
+    <ul class="points">
+      <li>Offline</li>
+      <li>No account</li>
+      <li>No ads</li>
+    </ul>
+    <p class="fine">Add Huecount to your home screen. It keeps working with the network off.</p>
+    <div class="actions">
+      <a class="primary" href="/play">Play</a>
+    </div>
+  </main>
+</div>
+<script type="module" src="/src/landing.ts"></script>
 </body>
 </html>
