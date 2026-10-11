@@ -1,4 +1,4 @@
-export const PULSE_GAP = 280;
+export const PULSE_GAP = 260;
 export const RUSH_LIMIT = 4500;
 
 export const PACE_ORDER = ["slow", "steady", "quick", "daily", "pulse", "ramp", "drift", "climb", "rush"] as const;
@@ -9,20 +9,21 @@ export interface Pace {
   blurb: string;
   min: number;
   max: number;
+  settle: number;
   maxGap?: number;
   limit?: number;
 }
 
 export const PACES: Record<PaceId, Pace> = {
-  slow: { name: "Slow", blurb: "Short counts. No hurry.", min: 3, max: 7 },
-  steady: { name: "Steady", blurb: "The everyday rhythm.", min: 5, max: 11 },
-  quick: { name: "Quick", blurb: "Longer counts, a little quicker.", min: 8, max: 16 },
-  daily: { name: "Daily", blurb: "One pigment for today.", min: 5, max: 12 },
-  pulse: { name: "Pulse", blurb: "280 ms between taps. A late tap smears.", min: 8, max: 18, maxGap: PULSE_GAP },
-  ramp: { name: "Ramp", blurb: "Lock it clean and the count climbs.", min: 5, max: 24 },
-  drift: { name: "Drift", blurb: "The number leaves after the first tap.", min: 6, max: 12 },
-  climb: { name: "Climb", blurb: "A ladder of longer counts.", min: 4, max: 20 },
-  rush: { name: "Rush", blurb: "Lock the count before the bar is gone.", min: 6, max: 14, limit: RUSH_LIMIT },
+  slow: { name: "Slow", blurb: "Short counts. No hurry.", min: 1, max: 3, settle: 1600 },
+  steady: { name: "Steady", blurb: "The everyday rhythm.", min: 1, max: 5, settle: 800 },
+  quick: { name: "Quick", blurb: "Keep the taps close.", min: 2, max: 7, settle: 280 },
+  daily: { name: "Daily", blurb: "One pigment for today.", min: 5, max: 12, settle: 800 },
+  pulse: { name: "Pulse", blurb: "260 ms between taps. A late tap smears.", min: 8, max: 18, settle: 220, maxGap: PULSE_GAP },
+  ramp: { name: "Ramp", blurb: "Lock it clean and the count climbs.", min: 5, max: 24, settle: 800 },
+  drift: { name: "Drift", blurb: "The number leaves after the first tap.", min: 6, max: 12, settle: 800 },
+  climb: { name: "Climb", blurb: "A ladder of longer counts.", min: 4, max: 20, settle: 800 },
+  rush: { name: "Rush", blurb: "Lock the count before the bar is gone.", min: 6, max: 14, settle: 800, limit: RUSH_LIMIT },
 };
 
 export const WORLD_ORDER = ["studio", "dusk", "ink", "glass", "field"] as const;
@@ -147,6 +148,23 @@ export function beatLost(gapMs: number, maxGap = PULSE_GAP): boolean {
   return gapMs > maxGap;
 }
 
+export function pauseText(ms: number): string {
+  const seconds = ms / 1000;
+  const trimmed = seconds.toFixed(2).replace(/0$/, "").replace(/\.0$/, "");
+  return `${trimmed}s`;
+}
+
+export function hudLine(pace: PaceId): string {
+  const spec = PACES[pace];
+  return `${spec.name} · ${pauseText(spec.settle)} pause`;
+}
+
+export function lockWaitMs(pace: PaceId, taps: number, target: number, smashed = false): number {
+  const spec = PACES[pace];
+  if (pace === "pulse" && !smashed && taps < target) return spec.maxGap ?? spec.settle;
+  return spec.settle;
+}
+
 export function rushExpired(elapsedMs: number, limit = RUSH_LIMIT): boolean {
   return elapsedMs >= limit;
 }
@@ -194,13 +212,13 @@ export function coachLine(round: Coach): string {
   if (round.result === "smear" && round.rushed) return "The bar ran out.";
   if (round.result === "smear") return "Off the count.";
   if (round.smashed) return "Beat lost. Matching the count still smears.";
-  if (round.hideTarget) return "The number left. Lock what you remember.";
+  if (round.hideTarget) return "The number left. Pause on what you remember.";
   const word = WORDS[round.target] ?? String(round.target);
   if (round.pace === "pulse") return `Tap ${word}. Stay inside ${PULSE_GAP} ms.`;
   if (round.pace === "rush") return `Tap ${word} before the bar empties.`;
   if (round.pace === "drift") return `Tap ${word}. It leaves after the first tap.`;
-  if (round.pace === "daily") return `Today, tap ${word}. Then lock.`;
-  return `Tap ${word}. Then lock.`;
+  if (round.pace === "daily") return `Today, tap ${word}. A pause locks it.`;
+  return `Tap ${word}. A pause locks it.`;
 }
 
 export function badgeLabel(result: Grade | null, newBest: boolean): string | null {

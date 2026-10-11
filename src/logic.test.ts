@@ -5,9 +5,13 @@ import {
   climbAfter,
   coachLine,
   gradeRound,
+  hudLine,
   hueName,
   keepsPigment,
+  lockWaitMs,
   makePigment,
+  PACE_ORDER,
+  PACES,
   pickTarget,
   rampAfter,
   rushExpired,
@@ -32,10 +36,10 @@ describe("gradeRound", () => {
 });
 
 describe("timing", () => {
-  it("keeps a tap on the 280 ms boundary", () => {
-    expect(beatLost(279)).toBe(false);
-    expect(beatLost(280)).toBe(false);
-    expect(beatLost(281)).toBe(true);
+  it("keeps a tap on the 260 ms boundary", () => {
+    expect(beatLost(259)).toBe(false);
+    expect(beatLost(260)).toBe(false);
+    expect(beatLost(261)).toBe(true);
   });
 
   it("expires rush at the limit", () => {
@@ -62,8 +66,54 @@ describe("targets", () => {
   });
 
   it("stays inside a pace range", () => {
-    expect(pickTarget("slow", { rampFloor: 5, climbRung: 0 }, () => 0)).toBe(3);
-    expect(pickTarget("slow", { rampFloor: 5, climbRung: 0 }, () => 0.999)).toBe(7);
+    expect(pickTarget("slow", { rampFloor: 5, climbRung: 0 }, () => 0)).toBe(1);
+    expect(pickTarget("slow", { rampFloor: 5, climbRung: 0 }, () => 0.999)).toBe(3);
+    expect(pickTarget("steady", { rampFloor: 5, climbRung: 0 }, () => 0)).toBe(1);
+    expect(pickTarget("steady", { rampFloor: 5, climbRung: 0 }, () => 0.999)).toBe(5);
+    expect(pickTarget("quick", { rampFloor: 5, climbRung: 0 }, () => 0)).toBe(2);
+    expect(pickTarget("quick", { rampFloor: 5, climbRung: 0 }, () => 0.999)).toBe(7);
+  });
+});
+
+describe("auto-lock", () => {
+  it("gives the four paces different pauses", () => {
+    expect(PACES.slow.settle).toBe(1600);
+    expect(PACES.slow.min).toBe(1);
+    expect(PACES.slow.max).toBe(3);
+    expect(PACES.steady.settle).toBe(800);
+    expect(PACES.steady.min).toBe(1);
+    expect(PACES.steady.max).toBe(5);
+    expect(PACES.quick.settle).toBe(280);
+    expect(PACES.quick.min).toBe(2);
+    expect(PACES.quick.max).toBe(7);
+    expect(PACES.pulse.settle).toBe(220);
+    expect(PACES.pulse.maxGap).toBe(260);
+  });
+
+  it("arms a pause on every pace", () => {
+    for (const id of PACE_ORDER) {
+      expect(PACES[id].settle).toBeGreaterThan(0);
+      expect(lockWaitMs(id, 1, 4)).toBeGreaterThan(0);
+    }
+  });
+
+  it("formats the playing HUD", () => {
+    expect(hudLine("steady")).toBe("Steady · 0.8s pause");
+    expect(hudLine("slow")).toBe("Slow · 1.6s pause");
+    expect(hudLine("quick")).toBe("Quick · 0.28s pause");
+    expect(hudLine("pulse")).toBe("Pulse · 0.22s pause");
+  });
+
+  it("locks on the pause, and on the pulse beat before the count", () => {
+    expect(lockWaitMs("steady", 1, 4)).toBe(800);
+    expect(lockWaitMs("slow", 2, 3)).toBe(1600);
+    expect(lockWaitMs("quick", 2, 2)).toBe(280);
+    expect(lockWaitMs("daily", 3, 8)).toBe(800);
+    expect(lockWaitMs("rush", 4, 9)).toBe(800);
+    expect(lockWaitMs("pulse", 3, 8)).toBe(260);
+    expect(lockWaitMs("pulse", 8, 8)).toBe(220);
+    expect(lockWaitMs("pulse", 9, 8)).toBe(220);
+    expect(lockWaitMs("pulse", 3, 8, true)).toBe(220);
   });
 });
 
@@ -108,8 +158,9 @@ describe("copy", () => {
   const base = { target: 7, pace: "steady" as const, result: null, smashed: false, rushed: false, hideTarget: false };
 
   it("tells you the count, the miss, and the lock", () => {
-    expect(coachLine(base)).toBe("Tap seven. Then lock.");
-    expect(coachLine({ ...base, pace: "pulse" })).toContain("280");
+    expect(coachLine(base)).toBe("Tap seven. A pause locks it.");
+    expect(coachLine({ ...base, pace: "pulse" })).toContain("260");
+    expect(coachLine({ ...base, pace: "daily" })).toBe("Today, tap seven. A pause locks it.");
     expect(coachLine({ ...base, pace: "drift", hideTarget: true })).toContain("remember");
     expect(coachLine({ ...base, result: "exact" })).toBe("Locked.");
     expect(coachLine({ ...base, result: "smear", smashed: true })).toBe("The beat slipped.");
