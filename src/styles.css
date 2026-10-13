@@ -459,9 +459,11 @@ a { color: inherit; }
   background: linear-gradient(180deg, transparent, var(--ink) 32%);
 }
 
-.actions.split {
+.actions.split,
+.actions .split {
   display: grid;
   grid-template-columns: 0.82fr 1.18fr;
+  gap: 10px;
   margin-top: 0;
 }
 
@@ -522,10 +524,31 @@ a { color: inherit; }
 .badge.warn { color: var(--warn); }
 .badge.show { animation: pop 420ms cubic-bezier(0.22, 1.35, 0.32, 1); }
 
+.result-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  min-height: 1.6rem;
+}
+
+.confirm {
+  margin: 0;
+  text-align: center;
+  font-family: Syne, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1.35rem;
+  letter-spacing: -0.045em;
+  color: var(--accent-ink);
+}
+
+.confirm.show { animation: pop 420ms cubic-bezier(0.22, 1.35, 0.32, 1); }
+.confirm.warn { color: var(--warn); }
+
 .orb {
   --p: 0;
   position: relative;
-  width: min(76vw, 318px);
+  width: min(76vw, 318px, 38dvh);
   aspect-ratio: 1;
   border: 0;
   padding: 0;
@@ -556,6 +579,27 @@ a { color: inherit; }
 .orb[data-grade="exact"] .orb-glow {
   transform: scale(1.08);
   opacity: 1;
+}
+
+.orb-settle {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 3px solid var(--pigment);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.orb.settling .orb-settle {
+  opacity: 0.9;
+  animation: settle-ring var(--settle, 800ms) linear forwards;
+}
+
+@keyframes settle-ring {
+  0% { opacity: 0.25; transform: scale(0.98); }
+  18% { opacity: 0.95; }
+  100% { opacity: 0.2; transform: scale(1.05); }
 }
 
 .orb-scale, .orb-progress, .orb-head, .orb-beat {

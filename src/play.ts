@@ -10,8 +10,10 @@ import {
   coachLine,
   colorCss,
   gradeRound,
+  hudLine,
   hueName,
   isPace,
+  lockWaitMs,
   isWorld,
   makePigment,
   pickTarget,
@@ -74,6 +76,8 @@ let deferredPrompt: InstallPrompt | null = null;
 let wakeLock: WakeLockSentinel | null = null;
 let rushRaf = 0;
 let lastPointer = 0;
+let lockTimer = 0;
+let lockToken = 0;
 
 function esc(value: string): string {
   return value.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] ?? ch);
@@ -131,10 +135,46 @@ function stopRush(): void {
   rushRaf = 0;
 }
 
+function clearLockTimer(): void {
+  lockToken += 1;
+  if (lockTimer) window.clearTimeout(lockTimer);
+  lockTimer = 0;
+}
+
+function paintSettle(active: boolean, wait = 0): void {
+  const orb = document.getElementById("orb");
+  if (!(orb instanceof HTMLElement)) return;
+  if (!active) {
+    orb.classList.remove("settling");
+    return;
+  }
+  orb.style.setProperty("--settle", `${wait}ms`);
+  orb.classList.remove("settling");
+  void orb.offsetWidth;
+  orb.classList.add("settling");
+}
+
+function armLockTimer(): void {
+  clearLockTimer();
+  if (state.view !== "play" || state.result || state.paused || state.taps < 1) {
+    paintSettle(false);
+    return;
+  }
+  const wait = lockWaitMs(state.pace, state.taps, state.target, state.smashed);
+  const token = lockToken;
+  paintSettle(true, wait);
+  lockTimer = window.setTimeout(() => {
+    lockTimer = 0;
+    if (token !== lockToken) return;
+    if (state.view !== "play" || state.result || state.paused) return;
+    finish();
+  }, wait);
+}
+
 function rushElapsed(now: number): number {
   if (!state.rushOrigin) return 0;
-  const extra = state.paused && state.rushHeldAt ? now - state.rushHeldAt : 0;
-  return Math.max(0, now - state.rushOrigin - state.rushHold - extra);
+  const frozen = state.rushHeldAt ? now - state.rushHeldAt : 0;
+  return Math.max(0, now - state.rushOrigin - state.rushHold - frozen);
 }
 
 function rushScale(now = performance.now()): number {
@@ -295,22 +335,22 @@ function playOrb(): string {
   const p = progressValue();
   const grade = state.result ? ` data-grade="${state.result}"` : "";
   const empty = p === 0;
-  return `<button type="button" class="orb" id="orb" data-act="tap" style="--p:${p.toFixed(4)}"${grade} data-empty="${empty}" data-armed="${isArmed()}" data-over="${state.taps > state.target}" data-smashed="${state.smashed}" aria-label="${esc(orbLabel())}"><span class="orb-glow"></span><span class="orb-beat" id="beat"></span><span class="orb-scale"><span class="orb-progress"></span><span class="orb-head"></span><span class="orb-glass"><span class="orb-sheen"></span><span class="orb-ripple"></span><span class="count" id="count">${state.taps}</span><span class="of${(!state.hideTarget && state.taps > state.target) ? " over" : ""}" id="of">${esc(ofText())}</span></span></span></button>`;
+  return `<button type="button" class="orb" id="orb" data-act="tap" style="--p:${p.toFixed(4)}"${grade} data-empty="${empty}" data-armed="${isArmed()}" data-over="${state.taps > state.target}" data-smashed="${state.smashed}" aria-label="${esc(orbLabel())}"><span class="orb-glow"></span><span class="orb-settle" aria-hidden="true"></span><span class="orb-beat" id="beat"></span><span class="orb-scale"><span class="orb-progress"></span><span class="orb-head"></span><span class="orb-glass"><span class="orb-sheen"></span><span class="orb-ripple"></span><span class="count" id="count">${state.taps}</span><span class="of${(!state.hideTarget && state.taps > state.target) ? " over" : ""}" id="of">${esc(ofText())}</span></span></span></button>`;
 }
 
 function playHTML(): string {
-  const pace = PACES[state.pace];
-  const world = WORLDS[state.world];
   const badge = badgeLabel(state.result, state.newBest);
-  const badgeHTML = badge ? `<p class="badge show${state.result === "smear" ? " warn" : ""}">${esc(badge)}</p>` : "";
+  const badgeHTML = badge
+    ? `<div class="result-row"><p class="badge show${state.result === "smear" ? " warn" : ""}">${esc(badge)}</p><p class="confirm show${state.result === "smear" ? " warn" : ""}" role="status">Locked</p></div>`
+    : "";
   const meter = state.pace === "rush" && !state.result
     ? `<div class="meter" aria-hidden="true"><span id="rushfill" style="transform:scaleX(${rushScale().toFixed(4)})"></span></div>`
     : "";
   const kept = state.pace === "daily" && save.dailyStamp === today() ? " · on the wall today" : "";
   const actions = state.result
-    ? `<div class="actions split"><button type="button" class="quiet" data-act="home">Home</button><button type="button" class="primary" data-act="again">Again</button></div>`
-    : `<div class="actions split"><button type="button" class="quiet" data-act="pause">Pause</button><button type="button" class="primary" data-act="lock">Lock</button></div>`;
-  return `<div class="stage-mid"><p class="where">${esc(world.name)} · ${esc(pace.name)}</p>${badgeHTML}${playOrb()}${meter}<p class="note" id="note" aria-live="polite">${esc(line())}</p><p class="pigment"><i></i>${esc(hueName(state.pigment.h) + kept)}</p></div>${actions}`;
+    ? `<div class="actions"><div class="split"><button type="button" class="quiet" data-act="home">Home</button><button type="button" class="primary" data-act="again">Again</button></div></div>`
+    : `<div class="actions"><button type="button" class="quiet" data-act="pause">Hold</button></div>`;
+  return `<div class="stage-mid"><p class="where" id="hud">${esc(hudLine(state.pace))}</p>${badgeHTML}${playOrb()}${meter}<p class="note" id="note" aria-live="polite">${esc(line())}</p><p class="pigment"><i></i>${esc(hueName(state.pigment.h) + kept)}</p></div>${actions}`;
 }
 
 function wallHTML(): string {
@@ -360,11 +400,11 @@ function plusHTML(): string {
 
 function pauseHTML(): string {
   const copy = state.pace === "pulse"
-    ? "Pulse timing waits until the next tap."
+    ? "The beat waits. Resume, then stop, and the color locks."
     : state.pace === "rush"
-      ? "The bar waits with you."
-      : "Take a breath. Lock when the count feels right.";
-  return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Paused</p><h2>The count holds.</h2><p>${esc(copy)}</p></div><div class="actions split"><button type="button" class="quiet" data-act="leave">Leave</button><button type="button" class="primary" data-act="resume">Resume</button></div>`;
+      ? "The bar waits with you. Resume, then stop, and the color locks."
+      : "The color locks when you stop tapping. It waits while this is open.";
+  return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Holding</p><h2>The count waits.</h2><p>${esc(copy)}</p></div><div class="actions split"><button type="button" class="quiet" data-act="leave">Leave</button><button type="button" class="primary" data-act="resume">Resume</button></div>`;
 }
 
 function sheetHTML(): string {
@@ -466,6 +506,8 @@ function holdRound(): void {
   if (state.view !== "play" || state.result || state.paused) return;
   if (state.pace === "rush" && state.rushOrigin && !state.rushHeldAt) state.rushHeldAt = performance.now();
   state.paused = true;
+  clearLockTimer();
+  paintSettle(false);
 }
 
 function resumeRound(): void {
@@ -478,10 +520,12 @@ function resumeRound(): void {
     state.rushHeldAt = 0;
   }
   render();
+  if (state.view === "play" && !state.result && state.taps > 0) armLockTimer();
 }
 
 function goHome(): void {
   stopRush();
+  clearLockTimer();
   releaseWake();
   state.view = "home";
   state.sheet = null;
@@ -510,6 +554,7 @@ function startRound(): void {
   const pace = isPace(save.pace) ? save.pace : "steady";
   const world = playWorld(isWorld(save.world) ? save.world : "studio", save.plus);
   stopRush();
+  clearLockTimer();
   state.view = "play";
   state.sheet = null;
   state.pace = pace;
@@ -536,6 +581,7 @@ function startRound(): void {
 function finish(): void {
   if (state.result || state.view !== "play") return;
   stopRush();
+  clearLockTimer();
   const grade = gradeRound(state.taps, state.target, { smashed: state.smashed, rushed: state.rushed });
   state.result = grade;
   state.paused = false;
@@ -609,6 +655,7 @@ function registerTap(now = performance.now()): void {
   const pattern = late ? HAPTIC.smash : !state.smashed && state.taps === state.target ? HAPTIC.arrival : HAPTIC.tap;
   playHaptic(pattern, save.haptics);
   paintTap();
+  armLockTimer();
 }
 
 function onOrb(now: number): void {
@@ -676,10 +723,6 @@ const actions: Record<string, (arg?: string, button?: HTMLElement) => void> = {
   },
   resume() { resumeRound(); },
   leave() { goHome(); },
-  lock() {
-    if (state.view !== "play" || state.result) return;
-    finish();
-  },
   pick(arg, button) {
     if (!arg || !button) return;
     if (button.dataset.kind === "world") {
@@ -796,12 +839,28 @@ window.addEventListener("beforeinstallprompt", (event) => {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") {
     if (state.view === "play" && !state.result && !state.paused) {
-      holdRound();
+      if (state.pace === "rush" && state.rushOrigin && !state.rushHeldAt) state.rushHeldAt = performance.now();
       state.heldByHide = true;
     }
     return;
   }
-  if (state.heldByHide) resumeRound();
+  if (state.heldByHide) {
+    state.heldByHide = false;
+    if (state.rushHeldAt) {
+      state.rushHold += performance.now() - state.rushHeldAt;
+      state.rushHeldAt = 0;
+    }
+    if (state.pace === "pulse") state.lastTap = null;
+    if (state.view === "play" && state.pace === "rush" && state.rushOrigin && !state.result && !state.paused) {
+      if (rushExpired(rushElapsed(performance.now()))) {
+        state.rushed = true;
+        finish();
+      } else {
+        stopRush();
+        rushRaf = requestAnimationFrame(rushLoop);
+      }
+    }
+  }
   if (state.view === "play" && !state.result) void lockWake();
 });
 
