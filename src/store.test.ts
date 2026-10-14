@@ -40,8 +40,10 @@ describe("normalizeSave", () => {
     expect(save.climbRung).toBe(0);
     expect(save.wall).toHaveLength(1);
     expect(save.wall[0]?.name).toBe("Clay");
+    expect(normalizeSave({ plus: true }).plus).toBe(false);
     const tracked = normalizeSave({
       plus: true,
+      plusToken: "abc.def",
       soundPack: "glass",
       history: [{ at: 9, grade: "exact", streak: 2 }, { grade: "nope" }],
     });

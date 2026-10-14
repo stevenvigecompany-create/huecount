@@ -28,11 +28,49 @@ export function plusConfigFrom(unlockUrl: string, codeHash: string): PlusConfig 
   };
 }
 
+// Filled from /api/plus at startup. The browser never holds the restore hash;
+// codeHash here is only a "restore is configured" marker.
+let runtimeConfig: PlusConfig = { unlockUrl: "", codeHash: "" };
+const SERVER_MARK = "0".repeat(64);
+
 export function currentPlusConfig(): PlusConfig {
-  const env = import.meta.env;
-  const unlockUrl = env.VITE_UNLOCK_URL || env.NEXT_PUBLIC_UNLOCK_URL || "";
-  const codeHash = env.VITE_PLUS_CODE_SHA256 || env.NEXT_PUBLIC_PLUS_CODE_SHA256 || "";
-  return plusConfigFrom(String(unlockUrl), String(codeHash));
+  return runtimeConfig;
+}
+
+export async function loadPlusConfig(fetcher: typeof fetch = fetch): Promise<PlusConfig> {
+  try {
+    const res = await fetcher("/api/plus", { cache: "no-store" });
+    const j = await res.json();
+    runtimeConfig = plusConfigFrom(String(j.unlockUrl || ""), j.restore ? SERVER_MARK : "");
+  } catch {
+    runtimeConfig = { unlockUrl: "", codeHash: "" };
+  }
+  return runtimeConfig;
+}
+
+export async function serverRestore(code: string, fetcher: typeof fetch = fetch): Promise<{ result: RestoreResult; token: string }> {
+  const trimmed = code.trim();
+  if (trimmed.length < 4 || trimmed.length > 80) return { result: "miss", token: "" };
+  try {
+    const res = await fetcher("/api/plus", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "restore", code: trimmed }) });
+    const j = await res.json();
+    const result: RestoreResult = j.result === "ok" || j.result === "unconfigured" ? j.result : "miss";
+    return { result, token: result === "ok" ? String(j.token || "") : "" };
+  } catch {
+    return { result: "miss", token: "" };
+  }
+}
+
+/** true / false from the server; null when offline (keep last state). */
+export async function serverVerify(token: string, fetcher: typeof fetch = fetch): Promise<boolean | null> {
+  if (!token) return false;
+  try {
+    const res = await fetcher("/api/plus", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "verify", token }) });
+    if (!res.ok) return null;
+    return (await res.json()).ok === true;
+  } catch {
+    return null;
+  }
 }
 
 export function plusReady(config: PlusConfig): boolean {
