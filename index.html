@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#070814" id="theme-color" />
 <meta name="color-scheme" content="dark light" />
-<meta name="description" content="Tap the count. Lock the color. A one-thumb fidget for iPhone and Android." />
+<meta name="description" content="Huecount is a free one-thumb color fidget for iPhone and Android. Tap, watch the color shift, lock the hue. Offline, no account, no ads." />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -13,7 +13,9 @@
 <meta name="format-detection" content="telephone=no" />
 <meta property="og:title" content="Huecount" />
 <meta property="og:description" content="Tap the count. Lock the color." />
-<title>Huecount</title>
+<title>Huecount — thirty seconds of calm, one thumb</title>
+<link rel="canonical" href="https://huecount.vercel.app/" />
+<meta property="og:image" content="https://huecount.vercel.app/icon-512.png" />
 <link rel="icon" href="/icon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="/icon-192.png" />
 <link rel="manifest" href="/manifest.webmanifest" />
@@ -26,42 +28,33 @@ try {
   var dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
   var meta = document.getElementById("theme-color");
-  if (meta) meta.setAttribute("content", dark ? "#070814" : "#e7edf8");
-} catch (e) {}
-</script>
-<style>
-  html { background: #070814; color: #f4f6ff; }
-  html[data-theme="light"] { background: #e7edf8; color: #161924; }
-  body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
-</style>
-</head>
-<body>
-<div class="shell">
-  <header class="topbar"><span class="mark">Hue<em>count</em></span></header>
-  <main class="view home">
-    <div class="orb preview" style="--p:0.68" aria-hidden="true">
-      <span class="orb-glow"></span>
-      <span class="orb-scale">
-        <span class="orb-progress"></span>
-        <span class="orb-head"></span>
-        <span class="orb-glass"><span class="orb-sheen"></span></span>
-      </span>
-    </div>
-    <div class="hero-copy">
-      <h1 class="title">Tap the count.<span>Lock the color.</span></h1>
-      <p class="lede">A one-thumb fidget. Count, pause, and keep the pigment.</p>
-    </div>
-    <ul class="points">
-      <li>Offline</li>
-      <li>No account</li>
-      <li>No ads</li>
-    </ul>
-    <p class="fine">Add Huecount to your home screen. It keeps working with the network off. Plus is $3 once for extra rooms, sounds, and streak tracking. The fidget stays free.</p>
-    <div class="actions">
-      <a class="primary" href="/play">Play</a>
-    </div>
-  </main>
-</div>
+  if (meta) meta.setAttribute("content", dark ? "#070814" : "#e7edf8");<body class="lp">
+<div class="lp-bg" aria-hidden="true"></div>
+<header class="lp-top"><span class="mark">Hue<em>count</em></span><a class="lp-pill" href="/play">Play free</a></header>
+<main>
+<section class="lp-hero">
+  <div class="lp-copy">
+    <p class="lp-eye">Free fidget · works offline · no ads</p>
+    <h1>Thirty seconds of calm.<span>One thumb.</span></h1>
+    <p class="lp-lede">Tap the orb. Watch the color drift. Lock the hue you like. Huecount is the fidget you open in a line, on a call, or before bed — no account, no feed, no ads.</p>
+    <div class="lp-cta"><a class="lp-btn" href="/play">Start playing — free</a><a class="lp-ghost" href="#install">Add to home screen</a></div>
+  </div>
+  <div class="lp-stage">
+    <button type="button" class="lp-orb" id="lp-orb" aria-label="Tap to try Huecount"><span class="lp-glass"></span><b id="lp-n">0</b></button>
+    <p class="lp-hint" id="lp-hint">Try it — tap the orb</p>
+  </div>
+</section>
+<section class="lp-cards">
+  <article><i>◐</i><h3>Instant calm</h3><p>Smooth color, soft haptics and a quiet count. Thirty seconds and you're back.</p></article>
+  <article><i>⌁</i><h3>Works offline</h3><p>Installs like an app. Airplane mode, subway, dead zone — still there.</p></article>
+  <article><i>◎</i><h3>Nothing to sign up for</h3><p>No account, no tracking feed, no ads. Your progress stays on your phone.</p></article>
+</section>
+<section class="lp-split" id="install">
+  <div class="lp-panel"><h2>Put it on your home screen</h2><ol><li><b>iPhone:</b> open in Safari → Share → <em>Add to Home Screen</em>.</li><li><b>Android:</b> open in Chrome → ⋮ menu → <em>Install app</em>.</li><li>Open it any time — even with no signal.</li></ol></div>
+  <div class="lp-panel lp-plus"><p class="lp-eye">Huecount Plus · coming soon</p><h2>$3 <small>once</small></h2><ul><li>Extra rooms and palettes</li><li>Sound packs</li><li>Streak tracking</li></ul><p class="lp-fine">The fidget stays free forever. Plus isn't on sale yet — nothing is charged today.</p><a class="lp-ghost" href="/play">Plus coming soon</a></div>
+</section>
+<footer class="lp-foot"><span>Huecount · a one-thumb fidget</span><a href="/play">Play</a></footer>
+</main>
 <script type="module" src="/src/landing.ts"></script>
 </body>
 </html>
