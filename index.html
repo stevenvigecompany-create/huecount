@@ -28,7 +28,16 @@ try {
   var dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
   var meta = document.getElementById("theme-color");
-  if (meta) meta.setAttribute("content", dark ? "#070814" : "#e7edf8");<body class="lp">
+  if (meta) meta.setAttribute("content", dark ? "#070814" : "#e7edf8");
+} catch (e) {}
+</script>
+<style>
+  html { background: #070814; color: #f4f6ff; }
+  html[data-theme="light"] { background: #e7edf8; color: #161924; }
+  body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
+</style>
+</head>
+<body class="lp">
 <div class="lp-bg" aria-hidden="true"></div>
 <header class="lp-top"><span class="mark">Hue<em>count</em></span><a class="lp-pill" href="/play">Play free</a></header>
 <main>
