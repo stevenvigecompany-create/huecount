@@ -39,6 +39,8 @@ export interface Save {
   rampFloor: number;
   climbRung: number;
   plus: boolean;
+  /** Server-signed Plus token. Plus is never on without one. */
+  plusToken: string;
   soundPack: SoundPack;
   history: StreakMark[];
 }
@@ -126,7 +128,8 @@ export function normalizeSave(input: unknown): Save {
     dailyStamp,
     rampFloor: clamp(count(raw.rampFloor) || 5, 5, 24),
     climbRung: clamp(count(raw.climbRung), 0, 8),
-    plus: flag(raw.plus, false),
+    plusToken: typeof raw.plusToken === "string" && /^[\w-]+\.[\w-]+$/.test(raw.plusToken) ? raw.plusToken : "",
+    plus: flag(raw.plus, false) && typeof raw.plusToken === "string" && /^[\w-]+\.[\w-]+$/.test(raw.plusToken),
     soundPack,
     history: readHistory(raw.history),
   };

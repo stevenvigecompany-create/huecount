@@ -31,7 +31,9 @@ import { HAPTIC, hapticAvailable, playHaptic } from "./haptics.ts";
 import {
   PLUS_PRICE,
   currentPlusConfig,
-  matchRestoreCode,
+  loadPlusConfig,
+  serverRestore,
+  serverVerify,
   playSound,
   playWorld,
   plusReady,
@@ -689,9 +691,10 @@ const actions: Record<string, (arg?: string, button?: HTMLElement) => void> = {
   restore(code) {
     const input = document.querySelector<HTMLInputElement>("#restore-code");
     const value = code ?? input?.value ?? "";
-    void matchRestoreCode(value, currentPlusConfig()).then((result) => {
-      if (result === "ok") {
+    void serverRestore(value).then(({ result, token }) => {
+      if (result === "ok" && token) {
         save.plus = true;
+        save.plusToken = token;
         state.restoreDraft = "";
         state.plusNote = "Plus is on this phone.";
         state.sheet = "plus";
@@ -884,7 +887,21 @@ if (returned.code != null) history.replaceState(null, "", returned.next);
 
 render();
 
-if (returned.code != null) actions.restore(returned.code);
+void loadPlusConfig().then(() => {
+  render();
+  if (returned.code != null) actions.restore(returned.code);
+});
+
+if (save.plus) {
+  void serverVerify(save.plusToken).then((ok) => {
+    if (ok === false) {
+      save.plus = false;
+      save.plusToken = "";
+      persist(save);
+      render();
+    }
+  });
+}
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch(() => undefined);
