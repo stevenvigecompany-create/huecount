@@ -36,4 +36,19 @@ const bundled = scripts.map((name) => readFileSync(`dist/assets/${name}`, "utf8"
 assert(bundled.includes("serviceWorker"), "app registers the service worker");
 assert(bundled.includes("vibrate"), "haptics are wired");
 
+assert(existsSync("dist/robots.txt"), "robots.txt");
+assert(existsSync("dist/sitemap.xml"), "sitemap.xml");
+const robots = readFileSync("dist/robots.txt", "utf8");
+assert(/Sitemap: https:\/\/huecount\.vercel\.app\/sitemap\.xml/.test(robots), "robots points at sitemap");
+assert(/Disallow: \/api\//.test(robots), "robots keeps /api out");
+const sitemap = readFileSync("dist/sitemap.xml", "utf8");
+assert(sitemap.includes("<loc>https://huecount.vercel.app/</loc>") && sitemap.includes("<loc>https://huecount.vercel.app/play</loc>"), "sitemap lists / and /play");
+assert(play.includes('rel="canonical" href="https://huecount.vercel.app/play"'), "play canonical");
+// Paywall: nothing Plus-secret may ship in static output.
+for (const name of readdirSync("dist").filter((n) => /\.(html|js|txt|xml|webmanifest)$/.test(n))) {
+  const text = readFileSync(`dist/${name}`, "utf8");
+  assert(!/buy\.stripe\.com|PLUS_TOKEN_SECRET|PLUS_CODE_SHA256/.test(text), `no Plus secrets in ${name}`);
+}
+assert(!/buy\.stripe\.com|PLUS_TOKEN_SECRET|PLUS_CODE_SHA256/.test(bundled), "no Plus secrets in bundle");
+
 console.log("dist ok");

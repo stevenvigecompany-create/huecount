@@ -31,4 +31,20 @@ describe("api/plus", () => {
     expect((await call("POST", { op: "verify", token: "eyJwbGFuIjoicGx1cyJ9.forged" }, env)).json.ok).toBe(false);
     expect((await call("POST", { op: "verify", token: "" }, env)).json.ok).toBe(false);
   });
+  it("rejects tokens signed with another secret or with an edited payload", async () => {
+    const ok = await call("POST", { op: "restore", code }, env);
+    const token: string = ok.json.token;
+    const other = { ...env, PLUS_TOKEN_SECRET: "another-secret-0123456789" };
+    expect((await call("POST", { op: "verify", token }, other)).json.ok).toBe(false);
+    const [, sig] = token.split(".");
+    const edited = Buffer.from(JSON.stringify({ plan: "plus", iat: 0, n: "x" })).toString("base64url");
+    expect((await call("POST", { op: "verify", token: `${edited}.${sig}` }, env)).json.ok).toBe(false);
+    expect((await call("POST", { op: "verify", token }, { ...env, PLUS_TOKEN_SECRET: "" })).json.ok).toBe(false);
+  });
+  it("does not restore with a short or oversized code, and rejects unknown ops", async () => {
+    expect((await call("POST", { op: "restore", code: "abc" }, env)).json.result).toBe("miss");
+    expect((await call("POST", { op: "restore", code: code + "x".repeat(80) }, env)).json.result).toBe("miss");
+    expect((await call("POST", { op: "unlock" }, env)).status).toBe(400);
+    expect((await call("PUT", null, env)).status).toBe(405);
+  });
 });
