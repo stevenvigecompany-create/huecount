@@ -39,6 +39,9 @@ import {
   plusReady,
   soundNeedsPlus,
   stripPlusParam,
+  restoreNote,
+  shouldKeepPending,
+  PENDING_KEY,
   worldNeedsPlus,
 } from "./plus.ts";
 
@@ -673,6 +676,18 @@ function onOrb(now: number): void {
   registerTap(now);
 }
 
+const pending = {
+  get(): string | null {
+    try { return localStorage.getItem(PENDING_KEY); } catch { return null; }
+  },
+  set(code: string) {
+    try { if (code) localStorage.setItem(PENDING_KEY, code); } catch { /* private mode */ }
+  },
+  clear() {
+    try { localStorage.removeItem(PENDING_KEY); } catch { /* private mode */ }
+  },
+};
+
 const actions: Record<string, (arg?: string, button?: HTMLElement) => void> = {
   home() { goHome(); },
   wall() { openWall(); },
@@ -698,6 +713,7 @@ const actions: Record<string, (arg?: string, button?: HTMLElement) => void> = {
       if (result === "ok" && token) {
         save.plus = true;
         save.plusToken = token;
+        pending.clear();
         state.restoreDraft = "";
         state.plusNote = "Plus is on this phone.";
         state.sheet = "plus";
@@ -708,11 +724,11 @@ const actions: Record<string, (arg?: string, button?: HTMLElement) => void> = {
       state.restoreDraft = value.trim();
       if (!value.trim()) {
         state.plusNote = "Enter the code from your receipt.";
-      } else if (result === "unconfigured") {
-        state.plusNote = "Plus coming soon.";
       } else {
-        state.plusNote = "That code doesn't match.";
+        state.plusNote = restoreNote(result);
       }
+      if (value.trim() && shouldKeepPending(result)) pending.set(value.trim());
+      else pending.clear();
       state.sheet = "plus";
       render();
     });
@@ -892,13 +908,19 @@ document.body.addEventListener("submit", (event) => {
 });
 
 const returned = stripPlusParam(location.href);
-if (returned.code != null) history.replaceState(null, "", returned.next);
+if (returned.code != null) {
+  history.replaceState(null, "", returned.next);
+  // Hold the just-paid code until the server confirms it (survives a reload or dropped signal).
+  if (!save.plus) pending.set(returned.code);
+}
+const retryCode = returned.code ?? (save.plus ? null : pending.get());
+if (save.plus) pending.clear();
 
 render();
 
 void loadPlusConfig().then(() => {
   render();
-  if (returned.code != null) actions.restore(returned.code);
+  if (retryCode) actions.restore(retryCode);
 });
 
 if (save.plus) {
