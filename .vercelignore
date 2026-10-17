@@ -1,0 +1,2 @@
+# Keep vitest files out of Vercel Functions (they were deploying as /api/*.test)
+api/*.test.ts
