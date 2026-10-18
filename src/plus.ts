@@ -8,7 +8,8 @@ export interface PlusConfig {
   codeHash: string;
 }
 
-export type RestoreResult = "ok" | "miss" | "unconfigured";
+/** ok / miss / unconfigured come from the server; error = couldn't reach it; slow = too many misses. */
+export type RestoreResult = "ok" | "miss" | "unconfigured" | "error" | "slow";
 
 export function isHttpsUrl(value: string): boolean {
   try {
@@ -53,11 +54,16 @@ export async function serverRestore(code: string, fetcher: typeof fetch = fetch)
   if (trimmed.length < 4 || trimmed.length > 80) return { result: "miss", token: "" };
   try {
     const res = await fetcher("/api/plus", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "restore", code: trimmed }) });
+    if (res.status === 429) return { result: "slow", token: "" };
+    if (!res.ok) return { result: "error", token: "" };
     const j = await res.json();
     const result: RestoreResult = j.result === "ok" || j.result === "unconfigured" ? j.result : "miss";
-    return { result, token: result === "ok" ? String(j.token || "") : "" };
+    const token = result === "ok" ? String(j.token || "") : "";
+    if (result === "ok" && !token) return { result: "error", token: "" };
+    return { result, token };
   } catch {
-    return { result: "miss", token: "" };
+    // Network / offline: never tell a buyer who just paid that their code is wrong.
+    return { result: "error", token: "" };
   }
 }
 
@@ -123,4 +129,26 @@ export function stripPlusParam(href: string): { code: string | null; next: strin
   const search = url.searchParams.toString();
   const next = `${url.pathname}${search ? `?${search}` : ""}${url.hash}`;
   return { code, next };
+}
+
+/** What the Plus sheet says after a restore attempt that didn't turn Plus on. */
+export function restoreNote(result: RestoreResult): string {
+  switch (result) {
+    case "unconfigured":
+      return "Plus coming soon.";
+    case "error":
+      return "Couldn't reach Huecount just now. Your code is kept on this phone. Tap Restore Plus to try again.";
+    case "slow":
+      return "Too many tries. Wait a few minutes, then try again.";
+    case "ok":
+      return "Plus is on this phone.";
+    default:
+      return "That code doesn't match.";
+  }
+}
+
+/** Keep a just-paid code until the server accepts it, so a dropped connection can't lose it. */
+export const PENDING_KEY = "huecount-pending-plus";
+export function shouldKeepPending(result: RestoreResult): boolean {
+  return result === "error" || result === "slow";
 }
