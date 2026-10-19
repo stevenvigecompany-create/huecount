@@ -45,4 +45,19 @@ describe("site hardening", () => {
       expect(readFileSync(resolve(root, f), "utf8")).toContain('name="robots" content="noindex"');
     }
   });
+
+  it("every indexable page has complete share tags on its canonical URL", () => {
+    for (const [file, url] of [
+      ["index.html", "https://huecount.vercel.app/"],
+      ["play.html", "https://huecount.vercel.app/play"],
+    ] as const) {
+      const html = readFileSync(resolve(root, file), "utf8");
+      expect(html, file).toContain(`property="og:url" content="${url}"`);
+      expect(html, file).toContain('property="og:type" content="website"');
+      expect(html, file).toContain('property="og:image" content="https://huecount.vercel.app/icon-512.png"');
+      expect(html, file).toContain('name="twitter:card" content="summary"');
+      const title = html.match(/<title>([^<]+)<\/title>/)?.[1] ?? "";
+      expect(title.length, file).toBeGreaterThan(12);
+    }
+  });
 });
