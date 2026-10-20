@@ -39,6 +39,9 @@ import {
   plusReady,
   soundNeedsPlus,
   stripPlusParam,
+  restoreNote,
+  shouldKeepPending,
+  PENDING_KEY,
   worldNeedsPlus,
 } from "./plus.ts";
 
@@ -215,6 +218,7 @@ function ofText(): string {
 function orbLabel(): string {
   if (state.result) return "Play again";
   if (state.hideTarget) return `Count is ${state.taps}. Target hidden.`;
+  if (isArmed()) return `Count matches ${state.target}. Pause to lock the color.`;
   return `Count is ${state.taps} of ${state.target}.`;
 }
 
@@ -270,7 +274,7 @@ function worldChip(id: string): string {
   const item = WORLDS[id];
   const locked = worldNeedsPlus(id) && !save.plus;
   if (locked) {
-    return `<button type="button" class="chip locked" data-act="plus" aria-pressed="false"><i class="dot" style="background:${item.swatch}"></i>${esc(item.name)}<span class="lock">Plus</span></button>`;
+    return `<button type="button" class="chip locked" data-act="plus" aria-label="${esc(item.name)} — needs Plus"><i class="dot" style="background:${item.swatch}"></i>${esc(item.name)}<span class="lock">Plus</span></button>`;
   }
   const on = playWorld(save.world, save.plus) === id;
   return `<button type="button" class="chip" data-act="pick" data-kind="world" data-arg="${id}" aria-pressed="${on}"><i class="dot" style="background:${item.swatch}"></i>${esc(item.name)}</button>`;
@@ -279,7 +283,7 @@ function worldChip(id: string): string {
 function soundChip(id: SoundPack): string {
   const name = id === "tick" ? "Tick" : id === "glass" ? "Glass" : "Wood";
   if (soundNeedsPlus(id) && !save.plus) {
-    return `<button type="button" class="chip locked" data-act="plus" aria-pressed="false">${name}<span class="lock">Plus</span></button>`;
+    return `<button type="button" class="chip locked" data-act="plus" aria-label="${name} — needs Plus">${name}<span class="lock">Plus</span></button>`;
   }
   return `<button type="button" class="chip" data-act="soundpack" data-arg="${id}" aria-pressed="${voice() === id}">${name}</button>`;
 }
@@ -342,8 +346,9 @@ function playOrb(): string {
 
 function playHTML(): string {
   const badge = badgeLabel(state.result, state.newBest);
+  const confirm = state.result === "smear" ? "Round over" : "Locked";
   const badgeHTML = badge
-    ? `<div class="result-row"><p class="badge show${state.result === "smear" ? " warn" : ""}">${esc(badge)}</p><p class="confirm show${state.result === "smear" ? " warn" : ""}" role="status">Locked</p></div>`
+    ? `<div class="result-row"><p class="badge show${state.result === "smear" ? " warn" : ""}">${esc(badge)}</p><p class="confirm show${state.result === "smear" ? " warn" : ""}" role="status">${confirm}</p></div>`
     : "";
   const meter = state.pace === "rush" && !state.result
     ? `<div class="meter" aria-hidden="true"><span id="rushfill" style="transform:scaleX(${rushScale().toFixed(4)})"></span></div>`
@@ -379,25 +384,26 @@ function themeButton(id: Save["theme"], label: string): string {
 function settingsHTML(): string {
   const canBuzz = hapticAvailable();
   const sounds = (["tick", "glass", "wood"] as const).map((id) => soundChip(id)).join("");
-  return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Settings</p><h2>On this device</h2></div><div class="group"><p class="label">Theme</p><div class="seg">${themeButton("dark", "Dark")}${themeButton("light", "Light")}${themeButton("system", "System")}</div></div><div class="card">${toggle("sound", "Sound", save.sound, "Ticks and the lock chime.")}${toggle("music", "Music", save.music, "A quiet bed under the count.")}${toggle("haptics", "Haptics", save.haptics && canBuzz, canBuzz ? "A short pulse in the hand." : "This browser doesn't vibrate. Taps still press in.", !canBuzz)}${toggle("motion", "Reduce motion", save.reduceMotion, "Stops the pops and the color drift.")}</div><div class="group"><p class="label">Sound pack</p><div class="chips">${sounds}</div></div><button type="button" class="quiet" data-act="plus">${save.plus ? "Plus is on" : "Huecount Plus"}</button><button type="button" class="primary" data-act="close">Done</button>`;
+  return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Settings</p><h2 id="sheet-title">On this device</h2></div><div class="group"><p class="label">Theme</p><div class="seg">${themeButton("dark", "Dark")}${themeButton("light", "Light")}${themeButton("system", "System")}</div></div><div class="card">${toggle("sound", "Sound", save.sound, "Ticks and the lock chime.")}${toggle("music", "Music", save.music, "A quiet bed under the count.")}${toggle("haptics", "Haptics", save.haptics && canBuzz, canBuzz ? "A short pulse in the hand." : "This browser doesn't vibrate. Taps still press in.", !canBuzz)}${toggle("motion", "Reduce motion", save.reduceMotion, "Stops the pops and the color drift.")}</div><div class="group"><p class="label">Sound pack</p><div class="chips">${sounds}</div></div><button type="button" class="quiet" data-act="plus">${save.plus ? "Plus is on" : "Huecount Plus"}</button><button type="button" class="primary" data-act="close">Done</button>`;
 }
 
 function restoreForm(): string {
   if (save.plus || !currentPlusConfig().codeHash) return "";
-  const note = state.plusNote ? `<p class="fine" id="plus-note">${esc(state.plusNote)}</p>` : "";
-  return `<form class="restore" data-act="restore"><label for="restore-code">Restore code</label><input id="restore-code" name="code" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="80" placeholder="From your receipt" value="${esc(state.restoreDraft)}" /><button type="submit" class="quiet">Restore Plus</button>${note}</form>`;
+  const note = state.plusNote ? `<p class="fine" id="plus-note" role="status">${esc(state.plusNote)}</p>` : "";
+  const described = state.plusNote ? ` aria-describedby="plus-note" aria-invalid="true"` : "";
+  return `<form class="restore" data-act="restore"><label for="restore-code">Restore code</label><input id="restore-code" name="code" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="80" placeholder="From your receipt" value="${esc(state.restoreDraft)}"${described} /><button type="submit" class="quiet">Restore Plus</button>${note}</form>`;
 }
 
 function plusHTML(): string {
   if (save.plus) {
-    return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Plus</p><h2>On this phone.</h2><p>After dark, Open air, Glass and Wood, and the streak log. Nothing else to buy.</p>${state.plusNote ? `<p class="fine">${esc(state.plusNote)}</p>` : ""}</div><button type="button" class="primary" data-act="close">Done</button>`;
+    return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Plus</p><h2 id="sheet-title">On this phone.</h2><p>After dark, Open air, Glass and Wood, and the streak log. Nothing else to buy.</p>${state.plusNote ? `<p class="fine">${esc(state.plusNote)}</p>` : ""}</div><button type="button" class="primary" data-act="close">Done</button>`;
   }
   const config = currentPlusConfig();
   const pending = plusReady(config) && !config.codeHash
     ? `<p class="fine">This build has a payment link, but no restore code yet, so a payment cannot turn Plus on.</p>`
     : "";
   const soon = plusReady(config) ? "" : `<p>The payment link is not connected yet. The free fidget keeps working.</p>`;
-  return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Plus</p><h2>Huecount Plus</h2><p>${PLUS_PRICE} once, for extra color packs, two more sounds, and streak tracking. No ads. No account.</p>${soon}${pending}</div>${plusOfferButton()}${restoreForm()}<button type="button" class="quiet" data-act="close">Not now</button>`;
+  return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Plus</p><h2 id="sheet-title">Huecount Plus</h2><p>${PLUS_PRICE} once, for extra color packs, two more sounds, and streak tracking. No ads. No account.</p>${soon}${pending}</div>${plusOfferButton()}${restoreForm()}<button type="button" class="quiet" data-act="close">Not now</button>`;
 }
 
 function pauseHTML(): string {
@@ -406,13 +412,13 @@ function pauseHTML(): string {
     : state.pace === "rush"
       ? "The bar waits with you. Resume, then stop, and the color locks."
       : "The color locks when you stop tapping. It waits while this is open.";
-  return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Holding</p><h2>The count waits.</h2><p>${esc(copy)}</p></div><div class="actions split"><button type="button" class="quiet" data-act="leave">Leave</button><button type="button" class="primary" data-act="resume">Resume</button></div>`;
+  return `<div class="grabber" aria-hidden="true"></div><div class="group"><p class="label">Holding</p><h2 id="sheet-title">The count waits.</h2><p>${esc(copy)}</p></div><div class="actions split"><button type="button" class="quiet" data-act="leave">Leave</button><button type="button" class="primary" data-act="resume">Resume</button></div>`;
 }
 
 function sheetHTML(): string {
   if (!state.sheet) return "";
   const body = state.sheet === "settings" ? settingsHTML() : state.sheet === "plus" ? plusHTML() : pauseHTML();
-  return `<button type="button" class="scrim" data-act="close" aria-label="Close"></button><div class="sheet-wrap"><section class="sheet" role="dialog" aria-modal="true" tabindex="-1">${body}</section></div>`;
+  return `<button type="button" class="scrim" data-act="close" aria-label="Close"></button><div class="sheet-wrap"><section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">${body}</section></div>`;
 }
 
 function mainHTML(): string {
@@ -670,6 +676,18 @@ function onOrb(now: number): void {
   registerTap(now);
 }
 
+const pending = {
+  get(): string | null {
+    try { return localStorage.getItem(PENDING_KEY); } catch { return null; }
+  },
+  set(code: string) {
+    try { if (code) localStorage.setItem(PENDING_KEY, code); } catch { /* private mode */ }
+  },
+  clear() {
+    try { localStorage.removeItem(PENDING_KEY); } catch { /* private mode */ }
+  },
+};
+
 const actions: Record<string, (arg?: string, button?: HTMLElement) => void> = {
   home() { goHome(); },
   wall() { openWall(); },
@@ -695,6 +713,7 @@ const actions: Record<string, (arg?: string, button?: HTMLElement) => void> = {
       if (result === "ok" && token) {
         save.plus = true;
         save.plusToken = token;
+        pending.clear();
         state.restoreDraft = "";
         state.plusNote = "Plus is on this phone.";
         state.sheet = "plus";
@@ -703,7 +722,13 @@ const actions: Record<string, (arg?: string, button?: HTMLElement) => void> = {
         return;
       }
       state.restoreDraft = value.trim();
-      state.plusNote = result === "unconfigured" ? "Plus coming soon." : "That code doesn't match.";
+      if (!value.trim()) {
+        state.plusNote = "Enter the code from your receipt.";
+      } else {
+        state.plusNote = restoreNote(result);
+      }
+      if (value.trim() && shouldKeepPending(result)) pending.set(value.trim());
+      else pending.clear();
       state.sheet = "plus";
       render();
     });
@@ -883,13 +908,19 @@ document.body.addEventListener("submit", (event) => {
 });
 
 const returned = stripPlusParam(location.href);
-if (returned.code != null) history.replaceState(null, "", returned.next);
+if (returned.code != null) {
+  history.replaceState(null, "", returned.next);
+  // Hold the just-paid code until the server confirms it (survives a reload or dropped signal).
+  if (!save.plus) pending.set(returned.code);
+}
+const retryCode = returned.code ?? (save.plus ? null : pending.get());
+if (save.plus) pending.clear();
 
 render();
 
 void loadPlusConfig().then(() => {
   render();
-  if (returned.code != null) actions.restore(returned.code);
+  if (retryCode) actions.restore(retryCode);
 });
 
 if (save.plus) {
