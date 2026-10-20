@@ -15,6 +15,7 @@ assert(existsSync("dist/icon-192.png"), "192 icon");
 assert(existsSync("dist/icon-512.png"), "512 icon");
 assert(statSync("dist/icon-192.png").size > 800, "192 icon is not empty");
 assert(statSync("dist/icon-512.png").size > 800, "512 icon is not empty");
+assert(existsSync("dist/og.png") && statSync("dist/og.png").size > 5000, "1200x630 share card og.png");
 
 const manifest = JSON.parse(readFileSync("dist/manifest.webmanifest", "utf8"));
 assert(manifest.name === "Huecount", "manifest name");

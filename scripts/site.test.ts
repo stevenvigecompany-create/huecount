@@ -54,8 +54,11 @@ describe("site hardening", () => {
       const html = readFileSync(resolve(root, file), "utf8");
       expect(html, file).toContain(`property="og:url" content="${url}"`);
       expect(html, file).toContain('property="og:type" content="website"');
-      expect(html, file).toContain('property="og:image" content="https://huecount.vercel.app/icon-512.png"');
-      expect(html, file).toContain('name="twitter:card" content="summary"');
+      expect(html, file).toContain('property="og:image" content="https://huecount.vercel.app/og.png"');
+      expect(html, file).toContain('property="og:image:width" content="1200"');
+      expect(html, file).toContain('property="og:image:height" content="630"');
+      expect(html, file).toContain('name="twitter:card" content="summary_large_image"');
+      expect(html, file).toContain('name="twitter:image" content="https://huecount.vercel.app/og.png"');
       const title = html.match(/<title>([^<]+)<\/title>/)?.[1] ?? "";
       expect(title.length, file).toBeGreaterThan(12);
     }
