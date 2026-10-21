@@ -40,6 +40,16 @@ describe("site hardening", () => {
     expect(play).toContain('rel="canonical" href="https://huecount.vercel.app/play"');
   });
 
+  it("404 page is noindex, links back to play, and /privacy + /terms resolve", () => {
+    const nf = readFileSync(resolve(root, "public/404.html"), "utf8");
+    expect(nf).toContain('name="robots" content="noindex"');
+    expect(nf).toContain('href="/play"');
+    const vercel = JSON.parse(readFileSync(resolve(root, "vercel.json"), "utf8"));
+    const map = Object.fromEntries(vercel.rewrites.map((r: { source: string; destination: string }) => [r.source, r.destination]));
+    expect(map["/privacy"]).toBe("/privacy.html");
+    expect(map["/terms"]).toBe("/terms.html");
+  });
+
   it("legal pages stay noindex", () => {
     for (const f of ["public/privacy.html", "public/terms.html"]) {
       expect(readFileSync(resolve(root, f), "utf8")).toContain('name="robots" content="noindex"');
