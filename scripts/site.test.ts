@@ -50,6 +50,13 @@ describe("site hardening", () => {
     expect(map["/terms"]).toBe("/terms.html");
   });
 
+  it("home footer links the clean /terms and /privacy URLs (what Stripe will check)", () => {
+    const home = readFileSync(resolve(root, "index.html"), "utf8");
+    expect(home).toContain('href="/terms"');
+    expect(home).toContain('href="/privacy"');
+    expect(home).not.toMatch(/href="\/(terms|privacy)\.html"/);
+  });
+
   it("legal pages stay noindex", () => {
     for (const f of ["public/privacy.html", "public/terms.html"]) {
       expect(readFileSync(resolve(root, f), "utf8")).toContain('name="robots" content="noindex"');
