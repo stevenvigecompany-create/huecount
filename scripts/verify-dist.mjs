@@ -38,6 +38,7 @@ assert(bundled.includes("serviceWorker"), "app registers the service worker");
 assert(bundled.includes("vibrate"), "haptics are wired");
 
 assert(existsSync("dist/robots.txt"), "robots.txt");
+assert(existsSync("dist/404.html") && readFileSync("dist/404.html", "utf8").includes("href=\"/play\""), "404 page links back to play");
 assert(existsSync("dist/sitemap.xml"), "sitemap.xml");
 const robots = readFileSync("dist/robots.txt", "utf8");
 assert(/Sitemap: https:\/\/huecount\.vercel\.app\/sitemap\.xml/.test(robots), "robots points at sitemap");
